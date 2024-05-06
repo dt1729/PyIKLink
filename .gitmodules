@@ -1,0 +1,3 @@
+[submodule "relaxed_ik"]
+	path = relaxed_ik
+	url = https://github.com/uwgraphics/relaxed_ik.git
