@@ -46,5 +46,9 @@ class IKLink(ABC):
         #                         pin.Quaternion(np.random.rand(4,1)).normalized()
         #                         )
         self.trajectory = []
-        self.table      = [[]]
+        self.table      = [[]]  # list(list(Node))
+    
+    def sample_candidates(self):
+        """Samples candidates from the IK algorithm 
+        """
         
