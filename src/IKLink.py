@@ -43,17 +43,22 @@ class IKLink(ABC):
     Args:
         ABC (abstract base class): _description_
     """
-    def __init__(self):
-        self.robot      = pin.Model()
+    def __init__(self, target_frame):
+        self.robot          = pin.Model()
         # Trajectory of form tuple(float,
         #                           np.array[3],
         #                           pin.Quaternion(np.random.rand(4,1)).normalized()
         #                           )
-        self.trajectory = []
-        self.table      = [[]]  # list(list(Node))
+        self.target_frame   = target_frame
+        self.trajectory     = []
+        self.table          = [[]]  # list(list(Node))
 
-    def sample_candidates(self):
-        """Samples candidates from the IK algorithm 
+    def sample_candidates(self, target_transform, init_node = None):
+        """Samples candidate ik solutions that solve the inverse kinematic problem for the given robot.
+
+        Args:
+            target_transform (pinocchio.SE3): Target pose to be reached
+            init_node (pinocchio.SE3): Initial pose of the robot from where it has to reach
         """
 
         n = len(self.trajectory)
@@ -72,20 +77,14 @@ class IKLink(ABC):
                 # Convert to python code, this checks if cluster idx exists,
                 # based on that copies the generated ik table into the Node.
 
-                # match clusters[j] {
-                #     Some(cluster_idx) => {
-                #         if !labels[cluster_idx] {
-                #             labels[cluster_idx] = true;
-                #             let node = Node::new(tmp_ik_table[i][j].clone());
-                #             self.table[i].push(node);
-                #         }
-                #     },
-                #     None => {
-                #         let node = Node::new(tmp_ik_table[i][j].clone());
-                #         self.table[i].push(node);
-                #     }
-                # }
-                raise NotImplementedError
+                if labels[clusters[j]] is not None:
+                    labels[clusters[j]] = True
+                    node = Node().new(copy.deepcopy(tmp_ik_table[i][j]))
+                    self.table[i].append(node)
+                else:
+                    node = Node().new(copy.deepcopy(tmp_ik_table[i][j]))
+                    self.table[i].append(node)
+
 
             while len(self.table[i]) < 200:
                 ik = self.robot.try_to_reach(self.trajectory[i].x, self.trajectory[i])
@@ -98,12 +97,16 @@ class IKLink(ABC):
             if i < n-1:
                 for j in range(len(self.table[i])):
                     # self.robot.ik_solver.reset(self.table[i][j].ik.to_vec());
-                    # let (found_ik, ik) = self.robot.try_to_track(self.trajectory[i+1].1, self.trajectory[i+1].2);
-                    # if !found_ik {
-                    #     break;
-                    # }
-                    # tmp_ik_table[i+1].push(Array1::from(ik));
-                    raise NotImplementedError
+
+                    found_ik, ik =  self.ik.solve(
+                                                    self.target_frame, 
+                                                    self.trajectory[i+1][2],
+                                                    init_state=self.trajectory[i+1][1],
+                                                    nullspace_components=[]
+                                                )
+                    if found_ik:
+                        break
+                    tmp_ik_table[i+1].append(ik)
 
     def dp(self):
         """Implementation of dynamic programming algorithm from IKLink paper to generate the least configuration path from all
