@@ -45,10 +45,11 @@ class IKLink(ABC):
     """
     def __init__(self, target_frame):
         self.robot          = pin.Model()
+        
         # Trajectory of form tuple(float,
-        #                           np.array[3],
-        #                           pin.Quaternion(np.random.rand(4,1)).normalized()
-        #                           )
+        #                           pinocchio.SE3()
+        #                         )
+        
         self.target_frame   = target_frame
         self.trajectory     = []
         self.table          = [[]]  # list(list(Node))
@@ -87,7 +88,7 @@ class IKLink(ABC):
 
 
             while len(self.table[i]) < 200:
-                ik = self.robot.try_to_reach(self.trajectory[i].x, self.trajectory[i])
+                ik = self.robot.try_to_reach()
                 if ik is not None:
                     continue
 
@@ -97,11 +98,11 @@ class IKLink(ABC):
             if i < n-1:
                 for j in range(len(self.table[i])):
                     # self.robot.ik_solver.reset(self.table[i][j].ik.to_vec());
-
                     found_ik, ik =  self.ik.solve(
-                                                    self.target_frame, 
+                                                    self.target_frame,
+                                                    # TODO: Extract end effector frame that will track the position
                                                     self.trajectory[i+1][2],
-                                                    init_state=self.trajectory[i+1][1],
+                                                    init_state=self.trajectory[i+1][2],
                                                     nullspace_components=[]
                                                 )
                     if found_ik:
