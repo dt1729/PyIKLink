@@ -45,17 +45,18 @@ class IKLink(ABC):
     """
     def __init__(self, target_frame):
         self.robot          = pin.Model()
-        
+
         # Trajectory of form tuple(float,
         #                           pinocchio.SE3()
         #                         )
-        
+
         self.target_frame   = target_frame
         self.trajectory     = []
         self.table          = [[]]  # list(list(Node))
 
     def sample_candidates(self, target_transform, init_node = None):
-        """Samples candidate ik solutions that solve the inverse kinematic problem for the given robot.
+        """Samples candidate ik solutions that solves
+        the inverse kinematic problem for the given robot.
 
         Args:
             target_transform (pinocchio.SE3): Target pose to be reached
@@ -68,9 +69,11 @@ class IKLink(ABC):
         for i in range(n):
             print("Constructing nodes for point {} / {}", i, n)
             # clustering IK solutions using DBSCAN
-            tmp_iks = DBSCAN(tmp_ik_table[i])
             # let clusters = Dbscan::params(2).tolerance(0.01).transform(&tmp_iks).unwrap();
-            # Python => clusters = 
+            dbscan = DBSCAN(eps=0.01, min_samples=2)
+            clusters = dbscan.fit(tmp_ik_table)
+            labels = dbscan.labels_
+            
             assert(np.shape(clusters) == len(tmp_ik_table[i]))
             # labels = vec![false; clusters.shape()[0]];
 
@@ -101,20 +104,43 @@ class IKLink(ABC):
                     found_ik, ik =  self.ik.solve(
                                                     self.target_frame,
                                                     # TODO: Extract end effector frame that will track the position
-                                                    self.trajectory[i+1][2],
-                                                    init_state=self.trajectory[i+1][2],
+                                                    self.trajectory[i+1][1],
+                                                    init_state=None,
                                                     nullspace_components=[]
                                                 )
                     if found_ik:
                         break
                     tmp_ik_table[i+1].append(ik)
 
-    def dp(self):
-        """Implementation of dynamic programming algorithm from IKLink paper to generate the least configuration path from all
-        the existing 
+    def check_velocity(self, config: np.array, prev_config: np.array, delta_t: float) -> bool:
+        """_summary_
+
+        Args:
+            config (np.array): _description_
+            prev_config (np.array): _description_
+            delta_t (float): _description_
+
+        Returns:
+            bool: _description_
         """
-        
-        assert(len(self.trajectory) == len(self.table))
+        assert len(config) == len(prev_config), \
+                            "config and prev_config should have the same length"
+        assert len(config) == self.robot.nv,\
+                            "config and prev_config should have the same length as arm_num_dofs"
+
+        for _, (curr_config, prev_config, joint_vel_limit) in \
+                enumerate(zip(config, prev_config, self.robot.velocityLimit)):
+            if (curr_config - prev_config).abs() > (joint_vel_limit * delta_t):
+                return False
+
+        return True
+
+    def dp(self):
+        """Implementation of dynamic programming algorithm from IKLink paper 
+        to generate the least configuration path from all existing configurations
+        """
+
+        assert len(self.trajectory) == len(self.table)
         print("Running Dynamic Programming algorithm")
 
         n = len(self.trajectory)
@@ -134,53 +160,63 @@ class IKLink(ABC):
             for y2 in range(len(self.table[x-1])):
                 primary_score = self.table[x-1][y2].primary_score + 1.0
                 secondary_score = self.table[x-1][y2].secondary_score
-                if primary_score < min_primary_score_with_config or (primary_score == min_primary_score_with_config and secondary_score < min_secondary_score_with_config):
+                if primary_score < min_primary_score_with_config or \
+                    (primary_score == min_primary_score_with_config and \
+                     secondary_score < min_secondary_score_with_config):
+
                     min_primary_score_with_config = primary_score
                     min_secondary_score_with_config = secondary_score
                     min_idx_with_config = y2
-        
+
         # find best predecessor with no arm reconfiguration
         for y1 in range(len(self.table[x])):
             min_primary_score = min_primary_score_with_config
             min_secondary_score = min_secondary_score_with_config
             predecessor = min_idx_with_config
-            
-            for y in range(len(self.robot.check_velocity ... )): # TODO: Complete later with robot coming from pinocchio and not custom defined as done in rust
-                primary_score = self.table[x-1][y2].primary_score
-                secondary_score = self.table[x-1][y2].secondary_score + self.robot.joint_movement(self.table[x][y1].ik, self.table[x-1][y2].ik) # TODO
-                if primary_score < min_primary_score:
-                    min_primary_score = primary_score
-                    min_secondary_score = secondary_score
-                    predecessor = y2
-                
+
+            # TODO: Complete later with robot coming from pinocchio and not custom defined as done in rust
+            for y2 in range(len(self.table[x-1])):
+
+                if self.check_velocity(self.table[x][y1].ik, self.table[x-1][y2].ik, delta_t):
+                    primary_score = self.table[x-1][y2].primary_score
+                    secondary_score = self.table[x-1][y2].secondary_score + \
+                                      self.robot.joint_movement(self.table[x][y1].ik,\
+                                      self.table[x-1][y2].ik) # TODO
+                    if primary_score < min_primary_score:
+                        min_primary_score = primary_score
+                        min_secondary_score = secondary_score
+                        predecessor = y2
+
             self.table[x][y1].primary_score = min_primary_score
             self.table[x][y1].secondary_score = min_secondary_score
             self.table[x][y1].predecessor = predecessor
-        
+
         best_primary_score = 100000.0
         best_secondary_score = 100000.0
         best_idx = 0
-        
+
         for j in range(len(self.table[n-1])):
             primary_score = self.table[n-1][j].primary_score
             secondary_score = self.table[n-1][j].secondary_score
-            
-            if primary_score < best_primary_score or (primary_score == best_primary_score and secondary_score < best_secondary_score):
+
+            if primary_score < best_primary_score or \
+                (primary_score == best_primary_score and \
+                 secondary_score < best_secondary_score):
+
                 best_primary_score = primary_score
                 best_secondary_score = secondary_score
                 best_idx = j
-            
-        assert(best_primary_score < 100000.0, "No valid solution found!")
+
+        assert best_primary_score < 100000.0, "No valid solution found!"
         print(f"Min Num of Reconfig: {best_primary_score}")
-        
+
         idx = best_idx
         ans_traj = []
-        
+
         for i in range(n, 0, -1):
             ans_traj.append((self.trajectory[i][0], copy.deepcopy(self.table[i][idx].ik)))
             idx = self.table[i][idx].predecessor
-        
+
         ans_traj.reverse()
         return ans_traj
-
-                
+      
