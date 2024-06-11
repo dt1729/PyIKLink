@@ -4,6 +4,7 @@ import copy
 
 from abc import ABC
 from sklearn.cluster import DBSCAN
+from differential_ik import DifferentialIk, DifferentialIkOptions
 
 
 class Node(ABC):
@@ -53,6 +54,9 @@ class IKLink(ABC):
         self.target_frame   = target_frame
         self.trajectory     = []
         self.table          = [[]]  # list(list(Node))
+        options = DifferentialIkOptions()
+        self.ik = DifferentialIk(self.robot, data=None, options=options, visualizer=None)
+
 
     def sample_candidates(self, target_transform, init_node = None):
         """Samples candidate ik solutions that solves
@@ -103,7 +107,6 @@ class IKLink(ABC):
                     # self.robot.ik_solver.reset(self.table[i][j].ik.to_vec());
                     found_ik, ik =  self.ik.solve(
                                                     self.target_frame,
-                                                    # TODO: Extract end effector frame that will track the position
                                                     self.trajectory[i+1][1],
                                                     init_state=None,
                                                     nullspace_components=[]
