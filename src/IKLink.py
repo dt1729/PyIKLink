@@ -183,9 +183,11 @@ class IKLink(ABC):
                 if self.check_velocity(self.table[x][y1].ik, self.table[x-1][y2].ik, delta_t):
                     primary_score = self.table[x-1][y2].primary_score
                     secondary_score = self.table[x-1][y2].secondary_score + \
-                                      self.robot.joint_movement(self.table[x][y1].ik,\
-                                      self.table[x-1][y2].ik) # TODO
-                    if primary_score < min_primary_score:
+                                      np.sum(
+                                            np.dot((self.table[x][y1].ik - self.table[x-1][y2].ik),\
+                                                   (self.table[x][y1].ik - self.table[x-1][y2].ik))
+                                             )
+                    if primary_score < min_primary_score: 
                         min_primary_score = primary_score
                         min_secondary_score = secondary_score
                         predecessor = y2

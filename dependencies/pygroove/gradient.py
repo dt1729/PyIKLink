@@ -80,7 +80,6 @@ class central_finite_diff:
         return copy.copy(self.out_grad)
 
 class central_finite_diff_2:
-    # TODO
     def __init__(self) -> None:
         self.dim = int
         self.f   = function
