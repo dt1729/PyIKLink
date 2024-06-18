@@ -77,7 +77,7 @@ class IKLink(ABC):
             dbscan = DBSCAN(eps=0.01, min_samples=2)
             clusters = dbscan.fit(tmp_ik_table)
             labels = dbscan.labels_
-            
+
             assert(np.shape(clusters) == len(tmp_ik_table[i]))
             # labels = vec![false; clusters.shape()[0]];
 
