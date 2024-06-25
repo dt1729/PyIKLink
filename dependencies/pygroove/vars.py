@@ -21,6 +21,7 @@ class RelaxedIKVars:
         self.goal_positions    = []
         self.goal_quats        = []
         self.tolerances        = []
+        self.ee_joint_names    = []
         self.init_ee_positions = []
         self.init_ee_rotation  = []
 
@@ -55,7 +56,7 @@ class RelaxedIKVars:
         #     }
         # }
 
-        self.pose = self.robot.jointPlacements.tolist()[-1]
+        self.pose = self.robot.jointPlacements.tolist()[-1:-2]
         self.init_ee_positions.append(self.pose.translation)
         self.init_ee_rotation.append(self.pose.rotation)
 
