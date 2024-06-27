@@ -90,11 +90,11 @@ class MatchEEPosGoals(objective_trait):
         # TODO: add assert for arm IDX
         x_val     = np.linalg.norm(frames[self.arm_idx][0][-1] - v.goal_positions[self.arm_idx])
         # groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
-        quadratic_loss(x_val, 0., 2)
+        return quadratic_loss(x_val, 0., 2)
 
     def call_lite(self, x: list, v : vars.RelaxedIKVars, ee_poses : list): # EE poses is list of pin.poses
         x_val = np.linalg.norm(ee_poses[self.arm_idx][0] - v.goal_positions[self.arm_idx])
-        groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
+        return groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
 
 
 class MatchEEQuatGoals(objective_trait):
@@ -111,7 +111,7 @@ class MatchEEQuatGoals(objective_trait):
 
         x_val = min(disp, disp2)
         # groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
-        quadratic_loss(x_val, 0., 2)
+        return quadratic_loss(x_val, 0., 2)
 
     def call_lite(self, x : list, v : vars.RelaxedIKVars, ee_poses : list) -> None:
         ee_quat2 = []
@@ -122,4 +122,56 @@ class MatchEEQuatGoals(objective_trait):
         disp2 = self.angle_between_quaternion(v.goal_quats[self.arm_idx], ee_quat2)
 
         x_val = min(disp, disp2)
-        groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
+        return groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
+
+class MinimizeJerk(objective_trait):
+    def call(self, x: list, v: vars.RelaxedIKVars, frames: list):
+        x_val = 0.0
+        for i in enumerate(x):
+            v1 = i[1] - v.xopt[i[0]]
+            v2 = v.xopt[i[0]] - v.prev_state[i[0]]
+            v3 = v.prev_state[i[0]] - v.prev_state2[i[0]]
+            a1 = v1 - v2
+            a2 = v2 - v3
+            x_val += (a1 - a2)**2
+
+        x_val = x_val**0.5
+        return groove_loss(x_val, 0.0, 2, 0.1 , 10.0, 2)
+
+    def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
+        x_val = 0.0
+        for i in enumerate(x):
+            v1 = i[1] - v.xopt[i[0]]
+            v2 = v.xopt[i[0]] - v.prev_state[i[0]]
+            v3 = v.prev_state[i[0]] - v.prev_state2[i[0]]
+            a1 = v1 - v2
+            a2 = v2 - v3
+            x_val += (a1 - a2)**2
+
+        x_val = x_val**0.5
+        return groove_loss(x_val, 0.0, 2, 0.1 , 10.0, 2)
+
+class MinimizeAcceleration(objective_trait):
+    def call(self, x: list, v: vars.RelaxedIKVars, frames: list):
+        x_val = 0.0
+
+        for i in enumerate(x):
+            v1 = i[1] - v.xopt[i[0]]
+            v2 = v.xopt[i[0]] - v.prev_state[i[0]]
+            x_val = (v1 - v2)**2
+
+        x_val = x_val**0.5
+        return groove_loss(x_val, 0.0, 2, 0.1 , 10.0, 2)
+
+    def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
+        x_val = 0.0
+
+        for i in enumerate(x):
+            v1 = i[1] - v.xopt[i[0]]
+            v2 = v.xopt[i[0]] - v.prev_state[i[0]]
+            x_val = (v1 - v2)**2
+
+        x_val = x_val**0.5
+        return groove_loss(x_val, 0.0, 2, 0.1 , 10.0, 2)
+
+
