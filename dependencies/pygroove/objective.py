@@ -173,5 +173,37 @@ class MinimizeAcceleration(objective_trait):
 
         x_val = x_val**0.5
         return groove_loss(x_val, 0.0, 2, 0.1 , 10.0, 2)
+    
+class MinimizeVelocity(objective_trait):
+    def call(self, x: list, v: vars.RelaxedIKVars, frames: list):
+        x_val = 0.0 
+        for i in enumerate(x):
+            x_val += (i[1] - v.xopt[i[0]])**2
+        x_val = x_val**0.5
+        return groove_loss(x_val, 0.0, 2, 0.1 , 10.0, 2)
 
+    def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
+        x_val = 0.0 
+        for i in enumerate(x):
+            x_val += (i[1] - v.xopt[i[0]])**2
+        x_val = x_val**0.5
+        return groove_loss(x_val, 0.0, 2, 0.1 , 10.0, 2)
+
+class EachJointLimits(objective_trait):
+    def __init__(self) -> None:
+        super().__init__()
+        self.joint_idx = None
+    
+    def call(self, x: list, v: vars.RelaxedIKVars, frames: list):
+        #TODO: Check the values for continuous joint in pinocchio
+        if v.robot.lowerPositionLimit[self.joint_idx] == None and v.robot.upperPositionLimit[self.joint_idx] == None:
+            return -1
+
+        l = v.robot.lowerPositionLimit[self.joint_idx]
+        u = v.robot.upperPositionLimit[self.joint_idx]
+        
+        return swamp_loss(x[self.joint_idx], l, u, 10.0, 10.0, 20)
+
+    def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
+        return 0.0
 
