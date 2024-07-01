@@ -207,3 +207,58 @@ class EachJointLimits(objective_trait):
     def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
         return 0.0
 
+class MaximizeManipulability(objective_trait):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def call(self, x: list, v: vars.RelaxedIKVars, frames: list):
+        jac   = pin.computeJointJacobians(v.robot,v.robot.create_data(), v.robot.q0)
+        x_val = np.linalg.det(np.dot(jac, np.transpose(jac)))**0.5
+        return groove_loss(x_val, 1.0, 2, 0.5, 0.1, 2)
+
+    def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
+        return 0.0
+
+class SelfCollision(objective_trait):
+    def __init__(self) -> None:
+        self.arm_idx = None
+        self.first_link = None
+        self.second_link = None
+
+    def call(self, x: list, v: vars.RelaxedIKVars, frames: list):
+
+        for i in enumerate(x):
+            if i[1] is None:
+                i[1] = 10.0
+
+        geom_model = pin.buildGeomFromUrdf(v.robot,
+                                           v.urdf_model_path,
+                                           v.mesh_dir,
+                                           pin.GeometryType.COLLISION
+                                           )
+        geom_model.addAllCollisionPairs()
+        geom_data  = pin.GeometryData(geom_model)
+
+        pin.computeCollisions(v.robot,
+                              v.robot.create_data(),
+                              geom_model,
+                              geom_data,
+                              v.robot.q0,
+                              False)
+
+        k = [i for i in range(len(geom_model.collisionPairs))
+             if geom_model.collisionPairs[i].first == frames[self.arm_idx][0][self.first_link]
+             and
+             geom_model.collisionPairs[i].first == frames[self.arm_idx][0][self.second_link]
+            ]
+
+        dist = np.linalg.norm(pin.SE3ToXYZQUAT(frames[self.arm_idx][k])[0:2] -
+                              pin.SE3ToXYZQUAT(frames[self.arm_idx][k])[0:2]) - 0.05
+
+        return swamp_loss(dist, 0.02, 1.5, 60.0, 0.0001, 30)
+
+    def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
+        x_val = 1.0
+        return groove_loss(x_val, 0., 2, 2.1, 0.0002, 4)
+
+

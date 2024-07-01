@@ -24,6 +24,8 @@ class RelaxedIKVars:
         self.ee_joint_names    = []
         self.init_ee_positions = []
         self.init_ee_rotation  = []
+        self.urdf_model_path   = ""
+        self.mesh_dir          = ""
 
     def from_local_settings(self, path_to_file : str):
         """_summary_
@@ -37,6 +39,8 @@ class RelaxedIKVars:
         self.base_links_arr = settings["base_links"]
         self.ee_links_arr   = settings["ee_links"]
 
+        self.urdf_model_path = settings["urdf_path"]
+        self.mesh_dir        = settings["mesh_dir"]
         # Currently code is being written assuming 1 kinematic chain
 
         # ill defined in vars.rs
@@ -55,6 +59,7 @@ class RelaxedIKVars:
         #         starting_config.push(starting_config_arr[i].as_f64().unwrap());
         #     }
         # }
+
 
         self.pose = self.robot.jointPlacements.tolist()[-1:-2]
         self.init_ee_positions.append(self.pose.translation)
