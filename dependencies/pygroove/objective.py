@@ -104,7 +104,7 @@ class MatchEEQuatGoals(objective_trait):
     def call(self, x : list, v : vars.RelaxedIKVars, frames : list) -> None:
         ee_quat2 = []
         ee_quat2.append(pin.SE3ToXYZQUAT(frames[self.arm_idx][-1])[-1])
-        ee_quat2.append(pin.SE3ToXYZQUAT(frames[self.arm_idx][-1])[3:5]) #This is unit quaternion
+        ee_quat2.append(pin.SE3ToXYZQUAT(frames[self.arm_idx][-1])[3:5]) #This is end effector unit quaternion
 
         disp = self.angle_between_quaternion(v.goal_quats[self.arm_idx], frames[self.arm_idx][-1])
         disp2 = self.angle_between_quaternion(v.goal_quats[self.arm_idx], ee_quat2)
@@ -173,7 +173,7 @@ class MinimizeAcceleration(objective_trait):
 
         x_val = x_val**0.5
         return groove_loss(x_val, 0.0, 2, 0.1 , 10.0, 2)
-    
+
 class MinimizeVelocity(objective_trait):
     def call(self, x: list, v: vars.RelaxedIKVars, frames: list):
         x_val = 0.0 
@@ -260,5 +260,63 @@ class SelfCollision(objective_trait):
     def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
         x_val = 1.0
         return groove_loss(x_val, 0., 2, 2.1, 0.0002, 4)
+
+class MatchEERotaDof(objective_trait):
+    def __init__(self, arm_idx : int, axis : int) -> None:
+        super().__init__()
+        self.arm_idx = arm_idx
+        self.axis = axis
+        
+    def call(self, x: list, v: vars.RelaxedIKVars, frames: list):
+        last_elem = frames[self.arm_idx][-1]
+        ee_quat   = pin.SE3ToXYZQUAT(last_elem)[3:5]
+        goal_quat = v.goal_quats[self.arm_idx]
+        rotation  = goal_quat.inverse()*ee_quat # TODO: Find the inverse and multiplication operation for quaternion and see if pinocchio uses that.
+        
+        # TODO: Axis angle representation 
+        euler = rotation.euler_angles() 
+        scaled_axis = rotation.scaled_axis()
+        
+        angle = 0.0
+        angle += np.abs(scaled_axis[self.arm_idx])
+
+        bound = v.tolerances[self.arm_idx][self.axis + 3]
+
+        if bound < 1e-2:
+            return groove_loss(angle, 0., 2, 0.1, 10.0, 2)
+        else:
+            if bound >= 3.14159260:
+                return swamp_loss(angle, -bound, bound, 100.0, 0.1, 20)
+            else:
+                return swamp_groove_loss(angle, 0.0, -bound, bound, bound*2.0, 1.0, 0.01, 100.0, 20)
+
+    def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
+        x_val = np.linalg.norm(ee_poses[self.arm_idx][0]- v.goal_positions[self.arm_idx])
+        return groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
+
+class MatchEEPosiDoF(objective_trait):
+    def __init__(self, arm_idx : int, axis : int) -> None:
+        super().__init__()
+        self.arm_idx = arm_idx
+        self.axis = axis
+
+    def call(self, x: list, v: vars.RelaxedIKVars, frames: list):
+        goal_quat = v.goal_quats[self.arm_idx]
+        last_elem_pos = pin.SE3ToXYZQUAT(frames[self.arm_idx][-1])[0:2]
+        T_gw_T_wc = np.array([  last_elem_pos[0] - v.goal_positions[self.arm_idx].x,\
+                                last_elem_pos[1] - v.goal_positions[self.arm_idx].y,\
+                                last_elem_pos[2] - v.goal_positions[self.arm_idx].z])
+        T_gc      = goal_quat.inverse() * T_gw_T_wc #TODO: Fix quaternion conversion here
+        dist      = T_gc[self.axis]
+        bound     = v.tolerances[self.arm_idx][self.axis]
+
+        if bound < 1e-2:
+            return groove_loss(angle, 0., 2, 0.1, 10.0, 2)
+        else:
+            return swamp_groove_loss(dist, 0.0, -bound, bound, bound*2.0, 1.0, 0.01, 100.0, 20)
+
+    def call_lite(self, x: list, v: vars.RelaxedIKVars, ee_poses: list):
+        x_val = np.linalg.norm(ee_poses[self.arm_idx][0]- v.goal_positions[self.arm_idx])
+        return groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
 
 
