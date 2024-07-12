@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import math
 import vars
 import time
 import pinocchio as pin
@@ -84,8 +85,8 @@ class objective_trait:
 
 
 class MatchEEPosGoals(objective_trait):
-    def __init__(self) -> None:
-        self.arm_idx = None 
+    def __init__(self, i : int) -> None:
+        self.arm_idx = i 
     def call(self, x : list, v : vars.RelaxedIKVars, frames : list) -> None:
         # TODO: add assert for arm IDX
         x_val     = np.linalg.norm(frames[self.arm_idx][0][-1] - v.goal_positions[self.arm_idx])
@@ -319,4 +320,31 @@ class MatchEEPosiDoF(objective_trait):
         x_val = np.linalg.norm(ee_poses[self.arm_idx][0]- v.goal_positions[self.arm_idx])
         return groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
 
+def quadratic_loss(x_val : float, t : float, g : float):
+    return (x_val - t)**g
 
+def groove_loss(x_val: float, t: float, d: int, c: float, f: float, g: int):
+    return np.exp(-((-(x_val - t)**d)/(2.0 * c**2))) + f * (x_val - t)**g
+
+def groove_loss_derivative(x_val: float, t: float, d: int, c: float, f: float, g: int):
+    return np.exp(-((-(x_val - t)**d)/(2.0 * c**2))) * ((float(d)*(x_val - t))/(2.0 * c**2)) + float(g)*f*(x_val - t)
+
+def swamp_loss(x_val: float, g: float, l_bound: float, u_bound: float, c : float, f1: float, f2: float, f3: float, p1: int):
+    x = (2.0 * x_val - l_bound - u_bound) / (u_bound - l_bound)
+    b = (np.log(-1.0 / (0.05)))**(1.0 / float(p1))
+    return (f1 + f2 * x**2) * (1.0 - (np.exp(-(x/b)**(p1)))) - 1.0
+
+def swamp_groove_loss(x_val: float, l_bound: float, u_bound: float, f1: float, f2: float, p1:int):
+    
+
+def swamp_groove_loss_derivative(x_val: float, g: float, l_bound: float, u_bound: float, c : float, f1: float, f2: float, f3: float, p1: int):
+    if math.fabs(2.0*x_val - l_bound - u_bound) < 1e-8:
+        return 0.0
+
+    x =  (2.0 * x_val - l_bound - u_bound) / (u_bound - l_bound)
+    b = (np.log(-1.0 / (0.05)))**(1.0 / float(p1))
+
+    return - f1 * np.exp( (-x_val**(2)) / (2.0 * c**(2) ) ) *  ((-2.0 * x_val) /  (2.0 * c**(2))) \
+    + 2.0 * f2 * x_val \
+    + f3 / (2.0 * x_val - l_bound - u_bound)\
+    * ( 2.0 * (x/b)**(p1) * float(p1) * (np.exp(- (x/b)**(p1))) )
