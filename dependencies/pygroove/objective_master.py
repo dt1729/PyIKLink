@@ -10,7 +10,7 @@ class ObjectiveMaster:
         self.finite_diff_grad = bool
 
     def standard_ik(self, chain_indices : list):
-        self.objectives = []
+        self.objectives = [] # TODO: Check with your objective solver to see how it wants objectives and add them 
         self.weight_priors = []
         self.num_chains = len(chain_indices)
         for i in range(self.num_chains):
@@ -39,5 +39,30 @@ class ObjectiveMaster:
             self.objectives.append(obj.MatchEERotaDoF(i, 2))
             self.weight_priors.append(1.0)
         
-        self.num_dofs = 
+        self.num_dofs = len(chain_indices) + 1
+        # self.objectives.append() TODO: Add objective to minimize velocity Do it according to 
+        self.weight_priors.append(0.01)
         
+    def call(self, x : list, vars : RelaxedIKVars):
+        if self.lite:
+            self.__call_lite(x, vars)
+        else:
+            self.__call(x, vars)
+    
+    def gradient(self, x : list, vars : RelaxedIKVars):
+        if self.lite:
+            if self.finite_diff_grad:
+                return self.__gradient_finite_diff_lite(x , vars)
+            else:
+                return self.__gradient_lite(x, vars)
+        else:
+            if self.finite_diff_grad:
+                return self.__gradient_finite_diff(x, vars)
+            else:
+                return self.__gradient(x, vars)
+    
+    
+    
+    
+            
+            
