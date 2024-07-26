@@ -3,6 +3,7 @@ from groove import objective as obj
 
 class ObjectiveMaster:
     def __init__(self) -> None:
+
         self.objectives = []
         self.num_chains = int
         self.weight_priors = []
@@ -10,6 +11,7 @@ class ObjectiveMaster:
         self.finite_diff_grad = bool
 
     def standard_ik(self, chain_indices : list):
+
         self.objectives = [] # TODO: Check with your objective solver to see how it wants objectives and add them 
         self.weight_priors = []
         self.num_chains = len(chain_indices)
@@ -19,12 +21,14 @@ class ObjectiveMaster:
             self.objectives.append(obj.MatchEEQuatGoals(i))
             self.weight_priors.append(1.0)
         return self
-    
+
     def relaxed_ik(self, chain_indices : list):
+
         self.objectives = []
         self.weight_priors = []
         self.num_chains = len(chain_indices)
         self.num_dofs   = 0
+
         for i in range(self.num_chains):
             self.objectives.append(obj.MatchEEPosiDoF(i, 0))
             self.weight_priors.append(50.0)
@@ -38,18 +42,20 @@ class ObjectiveMaster:
             self.weight_priors.append(1.0)
             self.objectives.append(obj.MatchEERotaDoF(i, 2))
             self.weight_priors.append(1.0)
-        
+
         self.num_dofs = len(chain_indices) + 1
-        # self.objectives.append() TODO: Add objective to minimize velocity Do it according to 
+        #self.objectives.append() # TODO: Add objective to minimize velocity Do it according to PanocPy
         self.weight_priors.append(0.01)
-        
+
     def call(self, x : list, vars : RelaxedIKVars):
+
         if self.lite:
             self.__call_lite(x, vars)
         else:
             self.__call(x, vars)
-    
+
     def gradient(self, x : list, vars : RelaxedIKVars):
+
         if self.lite:
             if self.finite_diff_grad:
                 return self.__gradient_finite_diff_lite(x , vars)
@@ -60,9 +66,34 @@ class ObjectiveMaster:
                 return self.__gradient_finite_diff(x, vars)
             else:
                 return self.__gradient(x, vars)
-    
-    
-    
-    
-            
-            
+
+    def gradient_finite_diff(self, x : list, vars : RelaxedIKVars):
+
+        if self.lite:
+            return self.__gradient_finite_diff_lite(x, vars)
+        else:
+            return self.__gradient_finite_diff(x, vars)
+
+    def __call(self, x : list, vars : RelaxedIKVars):
+
+        out = 0.0
+        frames = vars.robot.get_frames_immutable(x)
+
+        for i in enumerate(self.objectives):
+            out += self.weight_priors[i] * self.objectives[i].call(x, vars, frames)
+
+        return out
+
+    def __call_lite(self, x : list, vars : RelaxedIKVars):
+
+        out = 0.0
+        poses = vars.robot.get_ee_pos_and_quat_immutable(x)
+
+        for i in enumerate(self.objectives):
+            out += self.weight_priors[i] * self.objectives[i].call(x, vars, poses)
+
+        return out
+
+    def __gradient(self, x : list, vars : RelaxedIKVars):
+        
+        grad = 
