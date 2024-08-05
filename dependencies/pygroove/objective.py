@@ -335,8 +335,15 @@ def swamp_loss(x_val: float, g: float, l_bound: float, u_bound: float, c : float
     b = (np.log(-1.0 / (0.05)))**(1.0 / float(p1))
     return (f1 + f2 * x**2) * (1.0 - (np.exp(-(x/b)**(p1)))) - 1.0
 
-def swamp_groove_loss(x_val: float, l_bound: float, u_bound: float, f1: float, f2: float, p1:int):
-    
+def swamp_groove_loss(x_val: float, g: float, l_bound: float, u_bound: float, c: float, f1: float, f2: float, f3: float, p1: int):
+    x = (2.0 * x_val - l_bound - u_bound) / (u_bound - l_bound)
+    b = np.log(-1.0 / 0.05)**(1.0/p1)  # powf(1.0 / p1 as f64)
+    t1 = -f1 * np.exp( (-(x_val - g)**2) / (np.exp(2.0 * (c**2))) ) \
+         +f2 * (x_val - g)**2 \
+         +f3 * (1.0 - np.exp(-(x/b)**p1))
+
+    return t1
+
 
 def swamp_groove_loss_derivative(x_val: float, g: float, l_bound: float, u_bound: float, c : float, f1: float, f2: float, f3: float, p1: int):
     if math.fabs(2.0*x_val - l_bound - u_bound) < 1e-8:
