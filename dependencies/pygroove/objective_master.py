@@ -1,7 +1,7 @@
 from vars import RelaxedIKVars
 from groove import objective as obj
 import copy
-import numpy as np 
+import numpy as np
 
 class ObjectiveMaster:
     def __init__(self) -> None:
