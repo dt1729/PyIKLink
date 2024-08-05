@@ -89,12 +89,12 @@ class MatchEEPosGoals(objective_trait):
         self.arm_idx = i 
     def call(self, x : list, v : vars.RelaxedIKVars, frames : list) -> None:
         # TODO: add assert for arm IDX
-        x_val     = np.linalg.norm(frames[self.arm_idx][0][-1] - v.goal_positions[self.arm_idx])
+        x_val     = np.linalg.norm(frames[-1].placement.translation - v.goal_positions[self.arm_idx])
         # groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
         return quadratic_loss(x_val, 0., 2)
 
     def call_lite(self, x: list, v : vars.RelaxedIKVars, ee_poses : list): # EE poses is list of pin.poses
-        x_val = np.linalg.norm(ee_poses[self.arm_idx][0] - v.goal_positions[self.arm_idx])
+        x_val = np.linalg.norm(ee_poses[0] - v.goal_positions[self.arm_idx])
         return groove_loss(x_val, 0., 2, 0.1, 10.0, 2)
 
 
@@ -103,11 +103,12 @@ class MatchEEQuatGoals(objective_trait):
         self.arm_idx = None
 
     def call(self, x : list, v : vars.RelaxedIKVars, frames : list) -> None:
-        ee_quat2 = []
-        ee_quat2.append(pin.SE3ToXYZQUAT(frames[self.arm_idx][-1])[-1])
-        ee_quat2.append(pin.SE3ToXYZQUAT(frames[self.arm_idx][-1])[3:5]) #This is end effector unit quaternion
-
-        disp = self.angle_between_quaternion(v.goal_quats[self.arm_idx], frames[self.arm_idx][-1])
+        ee_quat = []
+        ee_quat.append(pin.SE3ToXYZQUAT(frames[-1])[-1])
+        ee_quat.append(pin.SE3ToXYZQUAT(frames[-1])[3:5]) #This is end effector unit quaternion
+        ee_quat2 = -1 * ee_quat
+        
+        disp = self.angle_between_quaternion(v.goal_quats[self.arm_idx], ee_quat)
         disp2 = self.angle_between_quaternion(v.goal_quats[self.arm_idx], ee_quat2)
 
         x_val = min(disp, disp2)
