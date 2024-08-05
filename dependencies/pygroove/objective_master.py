@@ -13,7 +13,6 @@ class ObjectiveMaster:
         self.finite_diff_grad = bool
 
     def standard_ik(self, chain_indices : list):
-
         self.objectives = [] # TODO: Check with your objective solver to see how it wants objectives and add them 
         self.weight_priors = []
         self.num_chains = len(chain_indices)
