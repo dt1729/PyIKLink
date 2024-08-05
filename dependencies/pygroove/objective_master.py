@@ -52,9 +52,9 @@ class ObjectiveMaster:
     def call(self, x : list, vars : RelaxedIKVars):
 
         if self.lite:
-            self.__call_lite(x, vars)
+            return self.__call_lite(x, vars)
         else:
-            self.__call(x, vars)
+            return self.__call(x, vars)
 
     def gradient(self, x : list, vars : RelaxedIKVars):
 
@@ -100,10 +100,10 @@ class ObjectiveMaster:
 
         grad = [0.0 for _ in range(len(x))]
         obj = 0.0
-        
+
         finite_diff_list = []
         f_0s             = []
-        
+
         robot_copy = copy.deepcopy(vars.robot)
 
         pin.forwardKinematics(robot_copy, robot_copy.createData(), np.array(x))
@@ -181,3 +181,27 @@ class ObjectiveMaster:
                     grad[i[0]] += self.weight_priors[j] * ((-f_0s[j] + f_h)/0.0000001)
 
         return obj, grad
+
+    def __gradient_finite_diff(self, x : list, vars : RelaxedIKVars):
+        grad = [0.0 for _ in range(len(x))]
+        f_0  = self.call(x, vars)
+
+        for i in enumerate(x):
+            x_h = copy.deepcopy(x)
+            x_h[i[0]] += 0.000001
+            f_h = self.call(x_h, vars)
+            grad[i[0]] = (-f_0 + f_h)/0.000001
+
+        return f_0, grad
+
+    def __gradient_finite_diff_lite(self, x : list, vars : RelaxedIKVars):
+        grad = [0.0 for _ in range(len(x))]
+        f_0  = self.call(x, vars)
+
+        for i in enumerate(x):
+            x_h = copy.deepcopy(x)
+            x_h[i[0]] += 0.000001
+            f_h = self.__call_lite(x_h, vars)
+            grad[i[0]] = (-f_0 + f_h)/0.000001
+
+        return f_0, grad
