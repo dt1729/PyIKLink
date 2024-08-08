@@ -6,7 +6,7 @@ from ABC import abc
 import os
 import pinocchio as pin
 import numpy as np
-
+import copy
 
 class Opt():
     def __init__(self) -> None:
@@ -31,5 +31,19 @@ class RelaxedIK():
         self.vars           = RelaxedIKVars.from_local_settings(path_to_setting)
         self.om_relaxedik   = ObjectiveMaster.relaxed_ik(vars.robot.chain_indices)
         self.om_standardik  = ObjectiveMaster.standard_ik(vars.robot.chain_indices)
-        self.groove         = OptimisationEngineOpen(vars.robot.nv)
-    
+        self.groove         = OptimisationEngineOpen() #TODO: Add number of dofs
+
+    def solve(self, constraint_velocity : bool):
+        out_x = copy.deepcopy(self.vars.xopt)
+        
+        if constraint_velocity: 
+            self.groove.optimize(out_x, self.vars, self.om_relaxedik, 100)
+        else:
+            self.groove.optimize(out_x, self.vars, self.om_standardik, 1000)
+            
+        if None in out_x:
+            return self.vars.xopt
+        
+        self.vars.update(out_x)
+        
+        return out_x.tolist() #TODO: Check what array type optimizer gives out if np.array then convert to list                 

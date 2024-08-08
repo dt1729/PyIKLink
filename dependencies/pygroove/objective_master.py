@@ -78,6 +78,12 @@ class ObjectiveMaster:
     def __call(self, x : list, vars : RelaxedIKVars):
 
         out = 0.0
+
+        robot_copy = copy.deepcopy(vars.robot)
+        pin.forwardKinematics(robot_copy, robot_copy.createData(), np.array(x))
+        frames = robot_copy.frames.tolist()
+        del robot_copy
+
         frames = vars.robot.get_frames_immutable(x)
 
         for i in enumerate(self.objectives):
