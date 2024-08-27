@@ -330,7 +330,7 @@ def groove_loss(x_val: float, t: float, d: int, c: float, f: float, g: int):
 def groove_loss_derivative(x_val: float, t: float, d: int, c: float, f: float, g: int):
     return np.exp(-((-(x_val - t)**d)/(2.0 * c**2))) * ((float(d)*(x_val - t))/(2.0 * c**2)) + float(g)*f*(x_val - t)
 
-def swamp_loss(x_val: float, g: float, l_bound: float, u_bound: float, c : float, f1: float, f2: float, f3: float, p1: int):
+def swamp_loss(x_val: float, l_bound: float, u_bound: float, f1: float, f2: float, p1: int):
     x = (2.0 * x_val - l_bound - u_bound) / (u_bound - l_bound)
     b = (np.log(-1.0 / (0.05)))**(1.0 / float(p1))
     return (f1 + f2 * x**2) * (1.0 - (np.exp(-(x/b)**(p1)))) - 1.0
